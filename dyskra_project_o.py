@@ -269,39 +269,6 @@ def find_pivots(
             break
     return P, W
 
-
-def basecase(
-    graph: Graph, dist: List[Weight], S: Set[Node], k: int
-) -> Tuple[float, Set[Node]]:
-    """
-    Base case search for BMSSP recursion.
-    Explores up to k+1 nodes from set S and updates distances.
-    Returns max distance and explored nodes.
-    """
-    if not S:
-        return float("inf"), set()
-    x = min(S, key=lambda v: dist[v])
-    heap: List[Tuple[Weight, Node]] = [(dist[x], x)]
-    Uo: Set[Node] = set()
-    while heap and len(Uo) < k + 1:
-        d_u, u = heapq.heappop(heap)
-        if d_u > dist[u]:
-            continue
-        Uo.add(u)
-        row = graph[u]
-        for v, w in enumerate(row):
-            if not math.isfinite(w):
-                continue
-            newd = dist[u] + w
-            if newd < dist[v]:
-                dist[v] = newd
-                heapq.heappush(heap, (newd, v))
-    if not Uo:
-        return float("inf"), set()
-    maxd = max(dist[v] for v in Uo if math.isfinite(dist[v]))
-    return maxd, Uo
-
-
 def bmssp_path(
     graph: Graph, source: Node, target: Node, l: int = 2, k_param: int = 50
 ) -> Tuple[List[Tuple[int, int]], float]:
@@ -434,7 +401,7 @@ def main():
         help="Maximum random edge weight (default: 10)",
     )
     parser.add_argument(
-        "--source", type=int, default=0, help="Source node index (default: 0)"
+        "--start", type=int, default=0, help="Start node index (default: 0)"
     )
     parser.add_argument(
         "--target",
@@ -453,7 +420,7 @@ def main():
         "--print-matrix", action="store_true", help="Print adjacency matrix"
     )
     parser.add_argument(
-        "--csv", type=str, default=None, help="Path to CSV file with edges"
+        "--source", type=str, default=None, help="Path to CSV file with edges"
     )
     parser.add_argument(
         "--force-benchmark",
@@ -469,23 +436,23 @@ def main():
 
     args = parser.parse_args()
 
-    if args.csv:
-        print(f"Loading graph from CSV: {args.csv}")
+    if args.source:
+        print(f"Loading graph from CSV: {args.source}")
         try:
-            graph = load_csv_to_matrix(args.csv)
+            graph = load_csv_to_matrix(args.source)
         except FileNotFoundError:
-            print(f"CSV file not found: {args.csv}")
+            print(f"CSV file not found: {args.source}")
             return
         except Exception as e:
             print(f"Error loading CSV: {e}")
             return
         n = len(graph)
 
-        if args.source < 0 or args.source >= n:
-            print(f"Source {args.source} out of bounds (0..{n-1}). Using 0.")
+        if args.start < 0 or args.start >= n:
+            print(f"Start {args.start} out of bounds (0..{n-1}). Using 0.")
             source = 0
         else:
-            source = args.source
+            source = args.start
         if args.target is not None:
             if args.target < 0 or args.target >= n:
                 print(
@@ -500,10 +467,10 @@ def main():
         print("Generating random graph...")
         n = args.nodes
         graph = generate_sparse_directed_graph(n, args.density, args.max_weight)
-        example_graph = generate_sparse_directed_graph(5, 0.3, 10)
-        source = args.source
+        source = args.start
         target = args.target if args.target is not None else n - 1
-
+    
+    example_graph = generate_sparse_directed_graph(5, 0.3, 10)
     l = args.recursion_depth
 
     print_adjacency_matrix(example_graph)
@@ -543,7 +510,7 @@ def main():
         print(f"  |Dijkstra - Bellman-Ford| = {abs(length_dij - length_bf)}")
         print(f"  |BMSSP - Bellman-Ford| = {abs(length_bm - length_bf)}")
 
-    do_benchmark = (not args.csv) or args.force_benchmark
+    do_benchmark = (not args.source) or args.force_benchmark
 
     if do_benchmark:
         print("\nRunning benchmark for different graph densities...")
@@ -558,7 +525,7 @@ def main():
         )
         print(f"Benchmark saved to {args.benchmark_output}")
     else:
-        print("\nBenchmark skipped (use --force-benchmark to run it when using --csv).")
+        print("\nBenchmark skipped (use --force-benchmark to run it when using --source).")
 
 
 if __name__ == "__main__":
